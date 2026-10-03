@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сомний — анализ снов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --bg-soft: #F7F6FB;
+    --bg-card: #FFFFFF;
+    --ink: #1A1B26;
+    --ink-soft: #4A4D63;
+    --ink-mute: #8B8FA8;
+    --line: #E8E6F0;
+    --accent: #5B6EE8;
+    --accent-soft: #E8EBFB;
+    --accent-deep: #3F4FBE;
+    --warm: #D4A373;
+    --glow: rgba(91, 110, 232, 0.25);
+  }
+  [data-theme="dark"] {
+    --bg: #121212;
+    --bg-soft: #1A1A22;
+    --bg-card: #1E1E28;
+    --ink: #EDEAF5;
+    --ink-soft: #B5B2C4;
+    --ink-mute: #6E6B82;
+    --line: #2A2A36;
+    --accent: #7C6FD6;
+    --accent-soft: #2A2540;
+    --accent-deep: #9B8FE8;
+    --warm: #C9A57A;
+    --glow: rgba(124, 111, 214, 0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter Tight', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    font-weight: 400;
+    transition: background 0.6s ease, color 0.6s ease;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ===== CUSTOM CURSOR ===== */
+  .cursor-dot, .cursor-ring {
+    position: fixed; top: 0; left: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    will-change: transform;
+  }
+  .cursor-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s, background 0.2s;
+  }
+  .cursor-ring {
+    width: 36px; height: 36px;
+    border: 1px solid var(--accent);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.3s, background 0.3s;
+    opacity: 0.5;
+    background: var(--glow);
+    backdrop-filter: blur(2px);
+  }
+  .cursor-ring.hover {
+    width: 64px; height: 64px;
+    opacity: 0.8;
+  }
+  @media (max-width: 900px), (hover: none) {
+    body { cursor: auto; }
+    .cursor-dot, .cursor-ring { display: none; }
+  }
+
+  /* ===== READING PROGRESS ===== */
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+    z-index: 200;
+    transform-origin: left;
+    box-shadow: 0 0 12px var(--glow);
+    animation: progress-grow linear;
+    animation-timeline: scroll(root);
+    transform: scaleX(0);
+    width: 100%;
+  }
+  @keyframes progress-grow { to { transform: scaleX(1); } }
+
+  /* ===== PRELOADER ===== */
+  .preloader {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+  .preloader.gone { opacity: 0; visibility: hidden; }
+  .pre-moon {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--accent), var(--accent-deep));
+    box-shadow: 0 0 60px var(--glow);
+    animation: pre-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pre-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+
+  .serif { font-family: 'Fraunces', serif; font-weight: 400; letter-spacing: -0.01em; }
+
+  /* ===== NAV ===== */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 20px 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    z-index: 100;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s ease, padding 0.3s ease;
+  }
+  .nav.scrolled { border-color: var(--line); padding: 14px 48px; }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Fraunces', serif;
+    font-size: 22px; font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .logo-mark {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--accent), var(--accent-deep));
+    box-shadow: 0 0 24px var(--glow);
+    position: relative;
+    animation: orbit 4s ease-in-out infinite;
+  }
+  .logo-mark::after {
+    content: ''; position: absolute;
+    top: 4px; left: 8px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--bg);
+    opacity: 0.4;
+  }
+  @keyframes orbit {
+    0%, 100% { box-shadow: 0 0 24px var(--glow); }
+    50% { box-shadow: 0 0 36px var(--glow), 0 0 60px var(--glow); }
+  }
+  .nav-links { display: flex; gap: 36px; align-items: center; }
+  .nav-links a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s ease;
+    position: relative;
+  }
+  .nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: -4px; left: 0;
+    width: 0; height: 1px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+  .nav-links a:hover { color: var(--accent); }
+  .nav-links a:hover::after { width: 100%; }
+  .nav-actions { display: flex; gap: 10px; align-items: center; }
+  .icon-btn {
+    background: none; border: 1px solid var(--line);
+    color: var(--ink-soft);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor: none;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s ease;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); transform: rotate(15deg); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  /* ===== HERO ===== */
+  .hero {
+    min-height: 100vh;
+    display: flex; align-items: center;
+    padding: 140px 48px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+  .moon-layer {
+    position: absolute;
+    top: 12%; right: 8%;
+    width: 360px; height: 360px;
+    will-change: transform;
+    animation: moon-parallax linear;
+    animation-timeline: scroll(root);
+    animation-range: 0 100vh;
+  }
+  @keyframes moon-parallax {
+    to { transform: translateY(120px) scale(0.85); }
+  }
+  .moon-glow {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%,
+      color-mix(in srgb, var(--accent) 35%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 10%, transparent) 50%,
+      transparent 70%);
+    filter: blur(20px);
+    animation: float 12s ease-in-out infinite;
+  }
+  .moon-core {
+    position: absolute;
+    top: 30%; left: 30%;
+    width: 40%; height: 40%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, var(--accent), var(--accent-deep));
+    opacity: 0.5;
+    box-shadow: 0 0 80px var(--glow);
+    animation: float 12s ease-in-out infinite;
+  }
+  .stars-layer {
+    position: absolute; inset: 0;
+    will-change: transform;
+    animation: stars-parallax linear;
+    animation-timeline: scroll(root);
+    animation-range: 0 100vh;
+  }
+  @keyframes stars-parallax {
+    to { transform: translateY(60px); }
+  }
+  .stars {
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, var(--accent), transparent),
+      radial-gradient(1px 1px at 60% 70%, var(--accent), transparent),
+      radial-gradient(1.5px 1.5px at 80% 20%, var(--warm), transparent),
+      radial-gradient(1px 1px at 30% 80%, var(--accent), transparent),
+      radial-gradient(1px 1px at 90% 50%, var(--accent-deep), transparent),
+      radial-gradient(1.5px 1.5px at 15% 60%, var(--warm), transparent),
+      radial-gradient(1px 1px at 50% 25%, var(--accent), transparent),
+      radial-gradient(1px 1px at 75% 85%, var(--accent), transparent),
+      radial-gradient(1.5px 1.5px at 5% 45%, var(--accent-deep), transparent);
+    opacity: 0.4;
+    animation: twinkle 4s ease-in-out infinite;
+  }
+  [data-theme="dark"] .stars { opacity: 0.7; }
+  .grain {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  [data-theme="dark"] .grain { opacity: 0.06; }
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-15px, -25px); }
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+
+  .hero-inner { max-width: 1200px; margin: 0 auto; width: 100%; position: relative; z-index: 1; }
+
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    opacity: 0;
+    animation: rise 0.8s 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .hero-tag::before {
+    content: ''; width: 6px; height: 6px;
+    background: var(--accent); border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+  }
+
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(48px, 7vw, 96px);
+    font-weight: 300;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    margin-bottom: 28px;
+    max-width: 900px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+    position: relative;
+    display: inline-block;
+  }
+  .hero h1 em::after {
+    content: '';
+    position: absolute;
+    bottom: 0.05em; left: 0;
+    width: 100%; height: 0.06em;
+    background: var(--accent);
+    opacity: 0.25;
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: underline-grow 1.5s 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes underline-grow { to { transform: scaleX(1); } }
+
+  .word { display: inline-block; overflow: hidden; vertical-align: top; }
+  .word > span {
+    display: inline-block;
+    transform: translateY(110%);
+    opacity: 0;
+    animation: word-rise 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes word-rise {
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-sub {
+    font-size: 19px;
+    color: var(--ink-soft);
+    max-width: 560px;
+    margin-bottom: 44px;
+    line-height: 1.55;
+    opacity: 0;
+    animation: rise 0.8s 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .hero-cta {
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    opacity: 0;
+    animation: rise 0.8s 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 26px;
+    border-radius: 100px;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: none;
+    border: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+    position: relative;
+    overflow: hidden;
+    will-change: transform;
+  }
+  .btn-primary { background: var(--ink); color: var(--bg); }
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    background: var(--accent);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+    z-index: 0;
+  }
+  .btn-primary:hover::before { width: 400px; height: 400px; }
+  .btn-primary > * { position: relative; z-index: 1; }
+  .btn-primary:hover {
+    color: #fff;
+    box-shadow: 0 12px 30px var(--glow);
+  }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn .arrow { transition: transform 0.3s ease; }
+  .btn:hover .arrow { transform: translateX(4px); }
+
+  .hero-stats {
+    margin-top: 80px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 32px; max-width: 700px;
+    opacity: 0;
+    animation: rise 0.8s 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .stat-num {
+    font-family: 'Fraunces', serif;
+    font-size: 36px; font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+    font-feature-settings: "tnum";
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: var(--ink-mute);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0;
+    animation: rise 0.8s 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .scroll-hint .line {
+    width: 1px; height: 40px;
+    background: var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+  .scroll-hint .line::after {
+    content: '';
+    position: absolute;
+    top: -40px; left: 0;
+    width: 100%; height: 40px;
+    background: linear-gradient(to bottom, transparent, var(--accent));
+    animation: scroll-line 2s ease-in-out infinite;
+  }
+  @keyframes scroll-line {
+    0% { top: -40px; }
+    100% { top: 40px; }
+  }
+
+  /* ===== EPIGRAPH ===== */
+  .epigraph {
+    padding: 100px 48px;
+    background: var(--bg);
+    position: relative;
+  }
+  .epigraph-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .epigraph-quote {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 300;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .epigraph-quote::before {
+    content: '“';
+    position: absolute;
+    top: -0.4em; left: -0.1em;
+    font-size: 4em;
+    color: var(--accent);
+    opacity: 0.2;
+    line-height: 1;
+    font-family: 'Fraunces', serif;
+  }
+  .epigraph-attr {
+    font-size: 13px;
+    color: var(--ink-mute);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+  }
+  .epigraph-attr::before, .epigraph-attr::after {
+    content: ''; width: 30px; height: 1px;
+    background: var(--line);
+  }
+
+  /* ===== SECTION ===== */
+  section { padding: 120px 48px; position: relative; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .section-head { margin-bottom: 80px; max-width: 780px; }
+  .section-tag {
+    font-size: 12px; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 500; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-tag::before { content: ''; width: 24px; height: 1px; background: var(--accent); }
+  .section-head h2 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin-bottom: 20px;
+  }
+  .section-head h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .section-head p { font-size: 18px; color: var(--ink-soft); line-height: 1.6; }
+
+  /* ===== FEATURES ===== */
+  .features { background: var(--bg-soft); position: relative; }
+  .feat-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; perspective: 1500px; }
+  .feat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 36px;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.4s ease,
+                box-shadow 0.4s ease;
+    position: relative;
+    overflow: hidden;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .feat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    background: radial-gradient(
+      600px circle at var(--mx, 50%) var(--my, 50%),
+      var(--glow),
+      transparent 40%
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+  .feat-card:hover::before { opacity: 1; }
+  .feat-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+    box-shadow: 0 20px 50px -20px var(--glow);
+  }
+  .feat-card.col-7 { grid-column: span 7; }
+  .feat-card.col-5 { grid-column: span 5; }
+  .feat-card.col-4 { grid-column: span 4; }
+  .feat-card.col-8 { grid-column: span 8; }
+  .feat-card.col-6 { grid-column: span 6; }
+  .feat-card.tall { min-height: 380px; display: flex; flex-direction: column; justify-content: space-between; }
+  .feat-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 24px;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .feat-card:hover .feat-icon { transform: translateZ(20px) rotate(-8deg); }
+  .feat-icon svg { width: 22px; height: 22px; stroke-width: 1.5; }
+  .feat-card h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 26px; font-weight: 400;
+    letter-spacing: -0.015em;
+    margin-bottom: 12px;
+    line-height: 1.2;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .feat-card:hover h3 { transform: translateZ(15px); }
+  .feat-card p { color: var(--ink-soft); font-size: 15px; line-height: 1.6; }
+
+  .waveform { display: flex; align-items: center; gap: 4px; height: 60px; margin-top: 28px; }
+  .waveform span {
+    flex: 1; max-width: 6px;
+    background: var(--accent);
+    border-radius: 100px;
+    opacity: 0.7;
+    animation: wave 1.4s ease-in-out infinite;
+  }
+  .waveform span:nth-child(1) { animation-delay: 0.0s; height: 30%; }
+  .waveform span:nth-child(2) { animation-delay: 0.1s; height: 60%; }
+  .waveform span:nth-child(3) { animation-delay: 0.2s; height: 80%; }
+  .waveform span:nth-child(4) { animation-delay: 0.3s; height: 50%; }
+  .waveform span:nth-child(5) { animation-delay: 0.4s; height: 90%; }
+  .waveform span:nth-child(6) { animation-delay: 0.5s; height: 70%; }
+  .waveform span:nth-child(7) { animation-delay: 0.6s; height: 40%; }
+  .waveform span:nth-child(8) { animation-delay: 0.7s; height: 65%; }
+  .waveform span:nth-child(9) { animation-delay: 0.8s; height: 85%; }
+  .waveform span:nth-child(10) { animation-delay: 0.9s; height: 55%; }
+  .waveform span:nth-child(11) { animation-delay: 1.0s; height: 75%; }
+  .waveform span:nth-child(12) { animation-delay: 1.1s; height: 45%; }
+  .waveform span:nth-child(13) { animation-delay: 1.2s; height: 95%; }
+  .waveform span:nth-child(14) { animation-delay: 1.3s; height: 35%; }
+  .waveform span:nth-child(15) { animation-delay: 1.4s; height: 60%; }
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1); }
+  }
+
+  .pattern-viz { margin-top: 24px; height: 180px; position: relative; }
+  .pattern-viz svg { width: 100%; height: 100%; }
+  .pattern-path {
+    stroke-dasharray: 1500;
+    stroke-dashoffset: 1500;
+    animation: draw-path linear;
+    animation-timeline: view();
+    animation-range: entry 0% cover 60%;
+  }
+  @keyframes draw-path { to { stroke-dashoffset: 0; } }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+  .chip {
+    padding: 6px 14px;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: transform 0.2s ease;
+  }
+  .chip:hover { transform: translateY(-2px); }
+  .chip.warm { background: color-mix(in srgb, var(--warm) 20%, transparent); color: var(--warm); }
+  .chip.mute { background: var(--bg-soft); color: var(--ink-mute); border: 1px solid var(--line); }
+
+  /* ===== HORIZONTAL SCROLL: WEEK ===== */
+  .week-section {
+    padding: 120px 0;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .week-head {
+    padding: 0 48px;
+    max-width: 1200px;
+    margin: 0 auto 60px;
+  }
+  .week-head h2 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin-bottom: 20px;
+  }
+  .week-head h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .week-head p {
+    font-size: 18px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    max-width: 640px;
+  }
+  .week-strip {
+    display: flex;
+    gap: 24px;
+    padding: 0 48px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .week-strip::-webkit-scrollbar { display: none; }
+  .dream-card {
+    flex: 0 0 320px;
+    scroll-snap-align: start;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 28px;
+    min-height: 340px;
+    display: flex; flex-direction: column;
+    position: relative;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.4s ease,
+                box-shadow 0.4s ease;
+  }
+  .dream-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--accent);
+    box-shadow: 0 20px 50px -20px var(--glow);
+  }
+  .dream-emoji { font-size: 28px; margin-bottom: 12px; }
+  .dream-day {
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+  }
+  .dream-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1.25;
+    margin-bottom: 14px;
+    letter-spacing: -0.01em;
+  }
+  .dream-text {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    flex: 1;
+    margin-bottom: 18px;
+  }
+  .dream-foot {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .dream-card.nightmare {
+    background: linear-gradient(180deg, var(--bg-card), color-mix(in srgb, var(--warm) 5%, var(--bg-card)));
+  }
+  .dream-card.nightmare .badge {
+    color: var(--warm);
+    background: color-mix(in srgb, var(--warm) 15%, transparent);
+  }
+  .dream-card .badge {
+    position: absolute;
+    top: 20px; right: 20px;
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    background: var(--accent-soft);
+    border-radius: 100px;
+  }
+  .dream-card .repeat-mark {
+    position: absolute;
+    top: 20px; right: 20px;
+    font-size: 18px;
+    color: var(--accent);
+  }
+
+  .strip-hint {
+    padding: 24px 48px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+    color: var(--ink-mute);
+    font-size: 13px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .strip-hint svg { width: 14px; height: 14px; }
+
+  /* ===== JOURNAL PREVIEW ===== */
+  .journal-preview { background: var(--bg-soft); }
+  .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .preview-text h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 42px; font-weight: 300;
+    line-height: 1.1; letter-spacing: -0.02em;
+    margin-bottom: 24px;
+  }
+  .preview-text h3 em { font-style: italic; color: var(--accent); }
+  .preview-text p { color: var(--ink-soft); font-size: 16px; margin-bottom: 16px; line-height: 1.7; }
+  .preview-list { list-style: none; margin-top: 32px; }
+  .preview-list li {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 14px;
+    color: var(--ink-soft); font-size: 15px;
+    transition: padding-left 0.3s ease, color 0.3s ease;
+  }
+  .preview-list li:hover { padding-left: 12px; color: var(--ink); }
+  .preview-list li:last-child { border-bottom: none; }
+  .preview-list .num {
+    font-family: 'Fraunces', serif;
+    color: var(--accent);
+    font-size: 14px; width: 28px;
+    font-style: italic;
+  }
+  .phone-mock {
+    background: linear-gradient(160deg, var(--bg-card), var(--bg-soft));
+    border: 1px solid var(--line);
+    border-radius: 36px;
+    padding: 28px;
+    box-shadow: 0 30px 80px -30px var(--glow);
+    position: relative;
+    will-change: transform;
+    animation: phone-tilt linear;
+    animation-timeline: view();
+    animation-range: entry 0% exit 100%;
+  }
+  @keyframes phone-tilt {
+    0% { transform: rotateY(8deg) rotateX(2deg) translateY(40px); }
+    50% { transform: rotateY(0) rotateX(0) translateY(0); }
+    100% { transform: rotateY(-6deg) rotateX(-2deg) translateY(-30px); }
+  }
+  .phone-mock::before {
+    content: ''; position: absolute;
+    top: -1px; left: 50%; transform: translateX(-50%);
+    width: 80px; height: 6px;
+    background: var(--line);
+    border-radius: 0 0 8px 8px;
+  }
+  .entry-date {
+    font-size: 12px; color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .entry-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px; font-weight: 400;
+    margin-bottom: 16px; line-height: 1.3;
+  }
+  .entry-body { color: var(--ink-soft); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .entry-divider { height: 1px; background: var(--line); margin: 20px 0; }
+  .entry-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .entry-emoji { font-size: 28px; margin-bottom: 4px; }
+
+  /* ===== METHODOLOGY w/ TIMELINE ===== */
+  .methodology { background: var(--bg); position: relative; }
+  .timeline-wrap { position: relative; }
+  .timeline-line {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 1px; height: 100%;
+    background: var(--line);
+    transform: translateX(-50%);
+  }
+  .timeline-line::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    background: linear-gradient(to bottom, var(--accent), var(--accent-deep));
+    box-shadow: 0 0 8px var(--glow);
+    animation: timeline-grow linear;
+    animation-timeline: view();
+    animation-range: entry 10% cover 70%;
+    height: 0;
+  }
+  @keyframes timeline-grow { to { height: 100%; } }
+
+  .step-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 60px;
+    align-items: center;
+    margin-bottom: 60px;
+    min-height: 180px;
+  }
+  .step-row:last-child { margin-bottom: 0; }
+  .step-row .dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 0 0 6px var(--bg);
+    animation: dot-fill linear;
+    animation-timeline: view();
+    animation-range: entry 0% cover 40%;
+  }
+  @keyframes dot-fill {
+    to { background: var(--accent); box-shadow: 0 0 0 6px var(--bg), 0 0 16px var(--glow); }
+  }
+  .step-content { padding: 24px 0; }
+  .step-row:nth-child(odd) .step-content:first-child { text-align: right; }
+  .step-row:nth-child(odd) .step-content:last-child { visibility: hidden; }
+  .step-row:nth-child(even) .step-content:first-child { visibility: hidden; }
+  .step-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .step-content h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.2;
+    margin-bottom: 10px;
+    letter-spacing: -0.015em;
+  }
+  .step-content p {
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 380px;
+  }
+  .step-row:nth-child(odd) .step-content:first-child p { margin-left: auto; }
+
+  /* ===== TRADITIONS ===== */
+  .traditions { background: var(--bg-soft); }
+  .trad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .trad-card {
+    padding: 40px 32px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s ease;
+  }
+  .trad-card::after {
+    content: '';
+    position: absolute;
+    top: -50%; right: -50%;
+    width: 150%; height: 150%;
+    background: radial-gradient(circle, var(--glow), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+  .trad-card:hover { border-color: var(--accent); }
+  .trad-card:hover::after {
+    opacity: 0.5;
+    transform: translate(-20%, 20%);
+  }
+  .trad-glyph {
+    font-family: 'Fraunces', serif;
+    font-size: 56px;
+    color: var(--accent);
+    opacity: 0.4;
+    line-height: 1;
+    margin-bottom: 16px;
+    font-style: italic;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .trad-card:hover .trad-glyph { opacity: 0.8; transform: scale(1.1) rotate(-5deg); }
+  .trad-card h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 24px; font-weight: 400;
+    margin-bottom: 12px;
+    position: relative; z-index: 1;
+  }
+  .trad-card p { color: var(--ink-soft); font-size: 14px; line-height: 1.6; position: relative; z-index: 1; }
+
+  /* ===== FAQ ===== */
+  .faq-section { background: var(--bg); }
+  .faq-list { max-width: 820px; margin: 0 auto; }
+  .faq-item {
+    border-top: 1px solid var(--line);
+    padding: 28px 0;
+    cursor: none;
+    transition: padding 0.3s ease;
+  }
+  .faq-item:last-child { border-bottom: 1px solid var(--line); }
+  .faq-q {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 24px;
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    transition: color 0.3s ease;
+  }
+  .faq-item:hover .faq-q { color: var(--accent); }
+  .faq-toggle {
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  .faq-toggle::before, .faq-toggle::after {
+    content: '';
+    position: absolute;
+    background: currentColor;
+    transition: transform 0.3s ease;
+  }
+  .faq-toggle::before { width: 12px; height: 1px; }
+  .faq-toggle::after { width: 1px; height: 12px; }
+  .faq-item.open .faq-toggle {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .faq-item.open .faq-toggle::after { transform: scaleY(0); }
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), margin 0.3s ease;
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .faq-item.open .faq-a {
+    max-height: 300px;
+    margin-top: 16px;
+  }
+
+  /* ===== CTA ===== */
+  .cta-section {
+    padding: 160px 48px;
+    text-align: center;
+    background: var(--bg-soft);
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, var(--glow), transparent 60%);
+    pointer-events: none;
+    border-radius: 50%;
+    animation: cta-pulse 6s ease-in-out infinite;
+  }
+  @keyframes cta-pulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.7; }
+  }
+  .cta-inner { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
+  .cta-section h2 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+  }
+  .cta-section h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .cta-section p { font-size: 18px; color: var(--ink-soft); margin-bottom: 40px; }
+
+  /* ===== FOOTER ===== */
+  footer {
+    padding: 60px 48px 40px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .footer-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 20px;
+  }
+  .footer-meta { color: var(--ink-mute); font-size: 13px; }
+  .footer-meta strong { color: var(--ink-soft); font-weight: 500; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 900px) {
+    .nav { padding: 16px 20px; }
+    .nav.scrolled { padding: 12px 20px; }
+    .nav-links { display: none; }
+    section { padding: 80px 20px; }
+    .hero { padding: 120px 20px 60px; }
+    .hero-stats { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .feat-card.col-7, .feat-card.col-5,
+    .feat-card.col-4, .feat-card.col-8, .feat-card.col-6 { grid-column: span 12; }
+    .preview-grid { grid-template-columns: 1fr; gap: 40px; }
+    .trad-grid { grid-template-columns: 1fr; }
+    .moon-layer { width: 220px; height: 220px; right: -40px; }
+    .cta-section { padding: 100px 20px; }
+    .step-row { grid-template-columns: auto 1fr; gap: 24px; }
+    .step-row .dot { order: 1; }
+    .step-content:first-child { display: none !important; }
+    .step-row .step-content:last-child { visibility: visible !important; order: 2; }
+    .step-row:nth-child(odd) .step-content:first-child { text-align: left; }
+    .timeline-line { left: 7px; transform: none; }
+    .epigraph { padding: 60px 20px; }
+    .week-head { padding: 0 20px; }
+    .week-strip { padding: 0 20px; }
+    .strip-hint { padding: 24px 20px 0; }
+    .footer-inner { justify-content: center; text-align: center; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    .word > span { transform: none; opacity: 1; }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  /* ===== AI ANALYSIS ===== */
+  .analysis-section { padding: 120px 48px; background: var(--bg-soft); }
+  .analysis-shell { max-width: 820px; margin: 0 auto; }
+  .dream-form { margin-top: 34px; padding: 28px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg-card); box-shadow: 0 18px 50px rgba(26,27,38,.05); }
+  .dream-form label { display: block; margin-bottom: 10px; font-size: 14px; color: var(--ink-soft); }
+  .dream-form textarea { display: block; width: 100%; min-height: 180px; resize: vertical; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; line-height: 1.6; outline: none; transition: border-color .2s, box-shadow .2s; }
+  .dream-form textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .form-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; }
+  .form-hint { color: var(--ink-mute); font-size: 12px; }
+  .analysis-result { display: none; margin-top: 24px; padding: 30px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg-card); }
+  .analysis-result.show { display: block; animation: result-in .45s ease both; }
+  @keyframes result-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .analysis-result h3 { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 400; margin-bottom: 14px; }
+  .analysis-result h4 { margin: 24px 0 8px; font-size: 13px; color: var(--ink-mute); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; }
+  .analysis-result p, .analysis-result li { color: var(--ink-soft); }
+  .analysis-result ul { padding-left: 20px; display: grid; gap: 8px; }
+  .symbol-list { display: grid; gap: 10px; }
+  .symbol { padding: 12px 14px; border-left: 2px solid var(--accent); background: var(--bg-soft); border-radius: 0 8px 8px 0; }
+  .symbol strong { color: var(--ink); }
+  .analysis-note { margin-top: 24px; color: var(--ink-mute) !important; font-size: 12px; }
+  .form-error { min-height: 20px; margin-top: 12px; color: #b94b4b; font-size: 14px; }
+  .btn[disabled] { opacity: .65; pointer-events: none; }
+  @media (max-width: 700px) { .analysis-section { padding: 80px 20px; } .dream-form { padding: 18px; } .form-foot { align-items: flex-start; flex-direction: column; } }
+</style>
+</head>
+<body data-theme="light">
+
+<div class="preloader" id="preloader">
+  <div class="pre-moon"></div>
+</div>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="cursor-dot" id="cursorDot"></div>
+
+<div class="progress-bar"></div>
+
+<nav class="nav" id="nav">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <span>Сомний</span>
+  </div>
+  <div class="nav-links">
+    <a href="#features">Возможности</a>
+    <a href="#week">Журнал</a>
+    <a href="#method">Подход</a>
+    <a href="#traditions">Толкования</a>
+    <a href="chat.html">Чат</a>
+    <a href="#faq">Вопросы</a>
+  </div>
+  <div class="nav-actions">
+    <button class="icon-btn" id="themeToggle" aria-label="Сменить тему">
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-bg">
+    <div class="stars-layer"><div class="stars"></div></div>
+    <div class="moon-layer">
+      <div class="moon-glow"></div>
+      <div class="moon-core"></div>
+    </div>
+    <div class="grain"></div>
+  </div>
+  <div class="hero-inner">
+    <div class="hero-tag">Мобильное приложение · Анализ снов</div>
+    <h1 id="heroTitle">
+      <span class="word"><span style="animation-delay: 0.3s">Подсознание</span></span><br>
+      <span class="word"><span style="animation-delay: 0.5s">говорит</span></span>
+      <span class="word"><span style="animation-delay: 0.7s">шёпотом —</span></span>
+      <em><span class="word"><span style="animation-delay: 1.0s">научитесь&nbsp;слушать.</span></span></em>
+    </h1>
+    <p class="hero-sub">
+      Сомний — спокойный журнал снов с распознаванием голоса,
+      аналитикой повторяющихся образов и интерпретациями
+      из разных традиций. Утром записал — днём понял.
+    </p>
+    <div class="hero-cta">
+      <a href="#features" class="btn btn-primary" data-magnetic>
+        <span>Узнать больше</span>
+        <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#week" class="btn btn-ghost" data-magnetic>Посмотреть журнал</a>
+    </div>
+
+    <div class="hero-stats">
+      <div>
+        <div class="stat-num" data-count="15">0</div>
+        <div class="stat-label">Сценариев<br>использования</div>
+      </div>
+      <div>
+        <div class="stat-num" data-count="2">0</div>
+        <div class="stat-label">Темы<br>оформления</div>
+      </div>
+      <div>
+        <div class="stat-num">∞</div>
+        <div class="stat-label">Записей<br>в журнале</div>
+      </div>
+      <div>
+        <div class="stat-num" data-count="4">0</div>
+        <div class="stat-label">Этапа<br>разработки</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Скролл</span>
+    <div class="line"></div>
+  </div>
+</header>
+
+<section class="epigraph">
+  <div class="epigraph-inner">
+    <p class="epigraph-quote reveal">
+      Как обычный пользователь, я хочу быстро записывать сон голосом сразу после пробуждения,
+      чтобы&nbsp;не&nbsp;забыть&nbsp;детали.
+    </p>
+    <div class="epigraph-attr reveal">Пользовательская история · 01</div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-tag">Что умеет приложение</div>
+      <h2>Каждая функция — для одного <em>тихого момента</em> между сном и днём.</h2>
+      <p>От голосовой записи сразу после пробуждения до годового самоанализа — всё собрано в один спокойный интерфейс.</p>
+    </div>
+
+    <div class="feat-grid">
+
+      <article class="feat-card col-7 tall reveal" data-tilt>
+        <div>
+          <div class="feat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          </div>
+          <h3>Голосом — пока сон ещё свеж</h3>
+          <p>Нажмите кнопку и расскажите. Распознавание речи переведёт сказанное в текст, выделит ключевые слова и эмоции, предложит 3–4 вопроса для размышления.</p>
+        </div>
+        <div class="waveform">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </article>
+
+      <article class="feat-card col-5 tall reveal" data-tilt>
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg>
+        </div>
+        <h3>Теги, эмоции, персонажи</h3>
+        <p>Структурируйте записи без усилий — система предложит метки на основе содержания.</p>
+        <div class="chip-row">
+          <span class="chip">полёт</span>
+          <span class="chip warm">тревога</span>
+          <span class="chip">дом детства</span>
+          <span class="chip">мать</span>
+          <span class="chip warm">тёплый свет</span>
+          <span class="chip mute">+ 12</span>
+        </div>
+      </article>
+
+      <article class="feat-card col-8 reveal" data-tilt>
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+        </div>
+        <h3>Карта повторяющихся образов</h3>
+        <p>Когда накопится 15–20 записей, система покажет, какие сюжеты возвращаются и как они связаны с событиями дня.</p>
+        <div class="pattern-viz">
+          <svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="pg" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="60" x2="600" y2="60" stroke="var(--line)" stroke-dasharray="2,4"/>
+            <line x1="0" y1="120" x2="600" y2="120" stroke="var(--line)" stroke-dasharray="2,4"/>
+            <path d="M 0 100 Q 100 40, 200 80 T 400 60 T 600 90 L 600 180 L 0 180 Z" fill="url(#pg)"/>
+            <path class="pattern-path" d="M 0 100 Q 100 40, 200 80 T 400 60 T 600 90"
+                  fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="80" cy="65" r="5" fill="var(--accent)"/>
+            <circle cx="220" cy="80" r="5" fill="var(--accent)"/>
+            <circle cx="380" cy="65" r="5" fill="var(--warm)"/>
+            <circle cx="520" cy="85" r="5" fill="var(--accent)"/>
+          </svg>
+        </div>
+      </article>
+
+      <article class="feat-card col-4 reveal" data-tilt>
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </div>
+        <h3>Проработка кошмара</h3>
+        <p>Перепишите концовку, попробуйте дыхательную технику. Приложение отследит, как меняется частота повторов.</p>
+      </article>
+
+      <article class="feat-card col-4 reveal" data-tilt>
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2a10 10 0 0 0 0 20c1.66 0 3-1.34 3-3 0-.78-.31-1.51-.81-2.03A2.99 2.99 0 0 1 17 14h1a4 4 0 0 0 4-4c0-4.42-4.48-8-10-8z"/></svg>
+        </div>
+        <h3>Творчество из снов</h3>
+        <p>Получите изображения и идеи историй на основе записанного сна — для художников, писателей, сценаристов.</p>
+      </article>
+
+      <article class="feat-card col-4 reveal" data-tilt>
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        </div>
+        <h3>PDF для терапевта</h3>
+        <p>Экспортируйте журнал за период с графиками и краткими выводами. Для разговора со специалистом — без лишних слов.</p>
+      </article>
+
+      <article class="feat-card col-6 reveal" data-tilt>
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>
+        </div>
+        <h3>Тренировка осознанных сновидений</h3>
+        <p>Дневные «проверки реальности», вечерние упражнения, утренний разбор. Прогресс отображается на отдельном экране.</p>
+      </article>
+
+      <article class="feat-card col-6 reveal" data-tilt>
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Анонимное сообщество</h3>
+        <p>Поделитесь сном без личных деталей и получите интерпретации от других пользователей. Чувствительные части скрываются автоматически.</p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section class="week-section" id="week">
+  <div class="week-head reveal">
+    <div class="section-tag">Неделя в снах</div>
+    <h2>Семь записей — <em>одна история о вас.</em></h2>
+    <p>Так выглядит обычная неделя в журнале — повторяющиеся образы, кошмары, осознанные сны.</p>
+  </div>
+
+  <div class="week-strip">
+
+    <article class="dream-card">
+      <div class="dream-emoji">🌊</div>
+      <div class="dream-day">Пн · 22 апреля</div>
+      <h3 class="dream-title">Океан без берега</h3>
+      <p class="dream-text">Я плыл в чёрной воде, не зная, в какую сторону берег. Было не страшно — просто бесконечно...</p>
+      <div class="dream-foot">
+        <span class="chip">вода</span>
+        <span class="chip warm">одиночество</span>
+      </div>
+    </article>
+
+    <article class="dream-card">
+      <span class="badge">осознанный</span>
+      <div class="dream-emoji">🪶</div>
+      <div class="dream-day">Вт · 23 апреля</div>
+      <h3 class="dream-title">Полёт над городом</h3>
+      <p class="dream-text">Понял, что сплю, и решил полететь. Город снизу казался совсем игрушечным — крыши, фонари, никого...</p>
+      <div class="dream-foot">
+        <span class="chip">полёт</span>
+        <span class="chip">город</span>
+      </div>
+    </article>
+
+    <article class="dream-card nightmare">
+      <span class="badge">кошмар</span>
+      <div class="dream-emoji">🚪</div>
+      <div class="dream-day">Ср · 24 апреля</div>
+      <h3 class="dream-title">Дверь, которую нельзя открыть</h3>
+      <p class="dream-text">В коридоре была дверь. Я знал, что за ней что-то важное, но не мог даже подойти близко. Проснулся в поту...</p>
+      <div class="dream-foot">
+        <span class="chip warm">страх</span>
+        <span class="chip">дом</span>
+      </div>
+    </article>
+
+    <article class="dream-card">
+      <div class="dream-emoji">🍃</div>
+      <div class="dream-day">Чт · 25 апреля</div>
+      <h3 class="dream-title">Тихий разговор с сестрой</h3>
+      <p class="dream-text">Мы сидели на веранде. Она рассказывала что-то длинное, я слушал и кивал. Не помню слов — только ощущение...</p>
+      <div class="dream-foot">
+        <span class="chip">семья</span>
+        <span class="chip warm">тепло</span>
+      </div>
+    </article>
+
+    <article class="dream-card">
+      <div class="dream-emoji">📚</div>
+      <div class="dream-day">Пт · 26 апреля</div>
+      <h3 class="dream-title">Библиотека с пустыми книгами</h3>
+      <p class="dream-text">Все книги на полках были пустыми. Я открывал одну за другой, надеясь найти текст. Никого вокруг не было...</p>
+      <div class="dream-foot">
+        <span class="chip">книги</span>
+        <span class="chip">пустота</span>
+      </div>
+    </article>
+
+    <article class="dream-card">
+      <span class="repeat-mark">↻</span>
+      <div class="dream-emoji">🌙</div>
+      <div class="dream-day">Сб · 27 апреля</div>
+      <h3 class="dream-title">Старый дом и тёплая вода</h3>
+      <p class="dream-text">Возвращался в дом из детства. Свет на кухне, кто-то моет посуду, но никого не видно. Было спокойно...</p>
+      <div class="dream-foot">
+        <span class="chip">дом детства</span>
+        <span class="chip warm">тепло</span>
+      </div>
+    </article>
+
+    <article class="dream-card">
+      <div class="dream-emoji">🌀</div>
+      <div class="dream-day">Вс · 28 апреля</div>
+      <h3 class="dream-title">Лестница без верха</h3>
+      <p class="dream-text">Поднимался по бесконечной лестнице. Каждый пролёт был тоньше предыдущего. Не мог остановиться...</p>
+      <div class="dream-foot">
+        <span class="chip">движение</span>
+        <span class="chip">бесконечность</span>
+      </div>
+    </article>
+
+  </div>
+
+  <div class="strip-hint">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    <span>Пролистайте, чтобы увидеть всю неделю</span>
+  </div>
+</section>
+
+<section class="journal-preview" id="journal">
+  <div class="container">
+    <div class="preview-grid">
+      <div class="preview-text reveal">
+        <div class="section-tag">Запись сна</div>
+        <h3>Каждая запись — <em>маленькое наблюдение</em> за самим собой.</h3>
+        <p>Дата, эмоции, объекты, персонажи. Никаких лишних полей — только то, что помогает вернуться к сну через год и узнать его.</p>
+        <ul class="preview-list">
+          <li><span class="num">i.</span> Голос или текст — на ваш выбор</li>
+          <li><span class="num">ii.</span> Автоматическое выделение ключевых слов</li>
+          <li><span class="num">iii.</span> Маркер кошмара, повторяющегося сна</li>
+          <li><span class="num">iv.</span> Связь с записями того же дня</li>
+          <li><span class="num">v.</span> Поиск по тегам, эмоциям, фрагментам текста</li>
+        </ul>
+      </div>
+
+      <div class="phone-mock">
+        <div class="entry-emoji">🌙</div>
+        <div class="entry-date">27 апреля · 06:42</div>
+        <div class="entry-title">Старый дом и тёплая вода</div>
+        <p class="entry-body">
+          Я возвращался в дом, где жил в детстве. Дверь была открыта.
+          В кухне горел тёплый свет, и кто-то мыл посуду — но я никого не видел.
+          Вода лилась бесконечно, и мне было спокойно...
+        </p>
+        <div class="entry-divider"></div>
+        <div class="entry-meta">
+          <span class="chip">дом детства</span>
+          <span class="chip warm">тепло</span>
+          <span class="chip">вода</span>
+          <span class="chip">спокойствие</span>
+        </div>
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--ink-mute);">
+          <span>↻ Третий раз за месяц</span>
+          <span style="color: var(--accent);">Анализ →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="methodology" id="method">
+  <div class="container">
+    <div class="section-head reveal" style="text-align: center; margin-left: auto; margin-right: auto;">
+      <div class="section-tag" style="justify-content: center;">Подход</div>
+      <h2>Сон записан. <em>Что дальше?</em></h2>
+      <p>Четыре шага от утренней записи до годового самоанализа. Никакой магии — только ваши собственные данные, аккуратно собранные.</p>
+    </div>
+
+    <div class="timeline-wrap">
+      <div class="timeline-line"></div>
+
+      <div class="step-row">
+        <div class="step-content">
+          <div class="step-num">— 01 —</div>
+          <h4>Запись</h4>
+          <p>Голосом или текстом сразу после пробуждения. Распознавание речи, выделение эмоций, краткое описание.</p>
+        </div>
+        <div class="dot"></div>
+        <div class="step-content"></div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-content"></div>
+        <div class="dot"></div>
+        <div class="step-content">
+          <div class="step-num">— 02 —</div>
+          <h4>Структурирование</h4>
+          <p>Теги, объекты, персонажи. Маркеры кошмара или повторяющегося образа. Связь с событиями дня.</p>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-content">
+          <div class="step-num">— 03 —</div>
+          <h4>Аналитика</h4>
+          <p>Утренний обзор по записям недели. Карта связей при накоплении 15–20 снов. Динамика эмоций по месяцам.</p>
+        </div>
+        <div class="dot"></div>
+        <div class="step-content"></div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-content"></div>
+        <div class="dot"></div>
+        <div class="step-content">
+          <div class="step-num">— 04 —</div>
+          <h4>Самоанализ</h4>
+          <p>Годовой отчёт с темами и переменами. PDF для специалиста. Совместный анализ с близким человеком.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="traditions" id="traditions">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-tag">Толкования</div>
+      <h2>Один сон — <em>несколько голосов.</em></h2>
+      <p>Получайте интерпретации из разных традиций и сравнивайте их. Ни одна не единственно верная — выбор за вами.</p>
+    </div>
+
+    <div class="trad-grid">
+      <div class="trad-card reveal">
+        <div class="trad-glyph">α</div>
+        <h4>Психологическая</h4>
+        <p>Подходы Юнга, Фрейда, современной аналитической психологии. Архетипы, символы личного бессознательного, связь с дневными переживаниями.</p>
+      </div>
+      <div class="trad-card reveal">
+        <div class="trad-glyph">☥</div>
+        <h4>Восточная</h4>
+        <p>Буддистские, даосские, индийские традиции толкования. Понимание сна как опыта сознания и его связи с дыханием, состоянием ума, временем.</p>
+      </div>
+      <div class="trad-card reveal">
+        <div class="trad-glyph">✧</div>
+        <h4>Библейская</h4>
+        <p>Толкования в христианской и иудейской традициях. Сны как символический язык, требующий внимания и контекста.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="analysis-section" id="analysis">
+  <div class="analysis-shell">
+    <div class="section-head reveal">
+      <div class="section-tag">AI-анализ</div>
+      <h2>Расскажите сон — <em>вместе найдём вопросы к нему.</em></h2>
+      <p>Это инструмент для личной рефлексии, а не психологическая диагностика или предсказание.</p>
+    </div>
+
+    <form class="dream-form reveal" id="dreamForm">
+      <label for="dreamText">Что вам приснилось?</label>
+      <textarea id="dreamText" name="dream" minlength="20" maxlength="6000" required placeholder="Например: Я шёл по пустому городу, слышал шум воды и искал знакомый дом..."></textarea>
+      <div class="form-foot">
+        <span class="form-hint"><span id="charCount">0</span> / 6 000 символов</span>
+        <button class="btn btn-primary" id="analyzeButton" type="submit" data-magnetic>
+          <span>Проанализировать сон</span>
+          <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <div class="form-error" id="formError" role="alert"></div>
+    </form>
+
+    <article class="analysis-result" id="analysisResult" aria-live="polite"></article>
+  </div>
+</section>
+
+<section class="faq-section" id="faq">
+  <div class="container">
+    <div class="section-head reveal" style="text-align: center; margin-left: auto; margin-right: auto;">
+      <div class="section-tag" style="justify-content: center;">Часто спрашивают</div>
+      <h2>То, что можно <em>сразу пояснить.</em></h2>
+    </div>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q">
+          <span>Где хранятся записи моих снов?</span>
+          <span class="faq-toggle"></span>
+        </div>
+        <div class="faq-a">
+          Локально на устройстве — в зашифрованной базе SQLite. Облачная синхронизация и резервное копирование включаются вручную, только с вашего согласия. По умолчанию ничего не отправляется наружу.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">
+          <span>Заменяет ли приложение психотерапевта?</span>
+          <span class="faq-toggle"></span>
+        </div>
+        <div class="faq-a">
+          Нет. Сомний — инструмент самоанализа, а не медицинское заключение. Все интерпретации носят вспомогательный характер. При необходимости приложение прямо рекомендует обратиться к специалисту и помогает экспортировать журнал в PDF для разговора с ним.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">
+          <span>Как работает голосовая запись офлайн?</span>
+          <span class="faq-toggle"></span>
+        </div>
+        <div class="faq-a">
+          Распознавание речи использует платформенные API (Speech-to-Text), которые работают на устройстве. Если микрофон недоступен или пользователь молчит больше 30 секунд — приложение предлагает ручной ввод текста.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">
+          <span>Что значит «карта повторяющихся образов»?</span>
+          <span class="faq-toggle"></span>
+        </div>
+        <div class="faq-a">
+          Когда в журнале накопится 15–20 записей, система покажет визуальную схему: какие сюжеты, эмоции и персонажи возвращаются чаще всего и как они связаны с событиями дня. До этого порога функция деликатно сообщит, что данных пока недостаточно.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">
+          <span>Можно ли делиться снами анонимно?</span>
+          <span class="faq-toggle"></span>
+        </div>
+        <div class="faq-a">
+          Да. Перед публикацией приложение предложит убрать чувствительные детали по вашему выбору, и только после подтверждения сон попадёт в анонимное сообщество. Передумали в последний момент — запись не публикуется.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <div class="cta-inner reveal">
+    <h2>Сны — это <em>тоже жизнь.</em><br>Начните их замечать.</h2>
+    <p>Сомний пока в разработке. Подпишитесь, и мы напишем, когда приложение появится в App Store и Google Play.</p>
+    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+      <a href="#analysis" class="btn btn-primary" data-magnetic>
+        <span>Попробовать AI-анализ</span>
+        <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#features" class="btn btn-ghost" data-magnetic>Ещё раз о возможностях</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <span>Сомний</span>
+    </div>
+    <div class="footer-meta">
+      <strong>Учебный проект</strong> · КубГУ, ФКТиПМ · Лобов Артём, 22/2 · 2026
+    </div>
+    <div class="footer-meta">
+      Дисциплина «Технологии создания и поддержки ПО»
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Preloader
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      document.getElementById('preloader').classList.add('gone');
+    }, 600);
+  });
+
+  // Custom cursor
+  const cursorDot = document.getElementById('cursorDot');
+  const cursorRing = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+
+  if (window.matchMedia('(hover: hover)').matches) {
+    document.addEventListener('mousemove', (e) => {
+      mx = e.clientX; my = e.clientY;
+      cursorDot.style.transform = `translate(${mx}px, ${my}px) translate(-50%, -50%)`;
+    });
+
+    function loopRing() {
+      rx += (mx - rx) * 0.18;
+      ry += (my - ry) * 0.18;
+      cursorRing.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%)`;
+      requestAnimationFrame(loopRing);
+    }
+    loopRing();
+
+    document.querySelectorAll('a, button, [data-magnetic], .faq-item, .feat-card, .dream-card').forEach(el => {
+      el.addEventListener('mouseenter', () => cursorRing.classList.add('hover'));
+      el.addEventListener('mouseleave', () => cursorRing.classList.remove('hover'));
+    });
+  }
+
+  // Theme toggle
+  const toggle = document.getElementById('themeToggle');
+  const moonIcon = document.getElementById('iconMoon');
+  const sunIcon = document.getElementById('iconSun');
+  const body = document.body;
+
+  toggle.addEventListener('click', () => {
+    const cur = body.getAttribute('data-theme');
+    const next = cur === 'light' ? 'dark' : 'light';
+    body.setAttribute('data-theme', next);
+    moonIcon.style.display = next === 'light' ? 'block' : 'none';
+    sunIcon.style.display = next === 'light' ? 'none' : 'block';
+  });
+
+  // Nav scroll
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 20) nav.classList.add('scrolled');
+    else nav.classList.remove('scrolled');
+  });
+
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Count-up
+  const counters = document.querySelectorAll('[data-count]');
+  const counterObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const target = parseInt(el.getAttribute('data-count'), 10);
+        let cur = 0;
+        const step = Math.max(1, Math.ceil(target / 30));
+        const tick = () => {
+          cur += step;
+          if (cur >= target) { el.textContent = target; return; }
+          el.textContent = cur;
+          requestAnimationFrame(tick);
+        };
+        tick();
+        counterObs.unobserve(el);
+      }
+    });
+  }, { threshold: 0.5 });
+  counters.forEach(c => counterObs.observe(c));
+
+  // Magnetic buttons
+  document.querySelectorAll('[data-magnetic]').forEach(btn => {
+    btn.addEventListener('mousemove', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      btn.style.transform = `translate(${x * 0.15}px, ${y * 0.25}px)`;
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transform = '';
+    });
+  });
+
+  // Card 3D tilt + spotlight
+  document.querySelectorAll('[data-tilt]').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const rxd = (py - 0.5) * -6;
+      const ryd = (px - 0.5) * 6;
+      card.style.transform = `perspective(1000px) rotateX(${rxd}deg) rotateY(${ryd}deg) translateY(-4px)`;
+      card.style.setProperty('--mx', `${px * 100}%`);
+      card.style.setProperty('--my', `${py * 100}%`);
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = '';
+    });
+  });
+
+  // FAQ accordion
+  document.querySelectorAll('.faq-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+      if (!wasOpen) item.classList.add('open');
+    });
+  });
+
+  // AI dream analysis
+  const dreamForm = document.getElementById('dreamForm');
+  const dreamText = document.getElementById('dreamText');
+  const charCount = document.getElementById('charCount');
+  const analyzeButton = document.getElementById('analyzeButton');
+  const analysisResult = document.getElementById('analysisResult');
+  const formError = document.getElementById('formError');
+
+  const escapeHtml = (value = '') => String(value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+  dreamText.addEventListener('input', () => { charCount.textContent = dreamText.value.length; });
+
+  function renderAnalysis(analysis) {
+    const emotions = Array.isArray(analysis.emotions) ? analysis.emotions : [];
+    const symbols = Array.isArray(analysis.symbols) ? analysis.symbols : [];
+    const questions = Array.isArray(analysis.questions) ? analysis.questions : [];
+    analysisResult.innerHTML = `
+      <h3>${escapeHtml(analysis.title || 'Наблюдение о вашем сне')}</h3>
+      <p>${escapeHtml(analysis.summary || '')}</p>
+      ${emotions.length ? `<h4>Эмоциональные оттенки</h4><div class="chip-row">${emotions.map(item => `<span class="chip">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
+      ${symbols.length ? `<h4>Образы, которые можно исследовать</h4><div class="symbol-list">${symbols.map(item => `<div class="symbol"><strong>${escapeHtml(item.name)}</strong> — ${escapeHtml(item.reflection)}</div>`).join('')}</div>` : ''}
+      ${questions.length ? `<h4>Вопросы к себе</h4><ul>${questions.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
+      ${analysis.grounding ? `<h4>Небольшая опора сейчас</h4><p>${escapeHtml(analysis.grounding)}</p>` : ''}
+      <p class="analysis-note">${escapeHtml(analysis.note || 'Этот текст помогает с рефлексией и не является медицинским или психологическим заключением.')}</p>`;
+    analysisResult.classList.add('show');
+    analysisResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  dreamForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const dream = dreamText.value.trim();
+    formError.textContent = '';
+    analysisResult.classList.remove('show');
+    if (dream.length < 20) { formError.textContent = 'Опиши сон хотя бы в 20 символах.'; return; }
+    analyzeButton.disabled = true;
+    analyzeButton.querySelector('span').textContent = 'Анализируем…';
+    try {
+      const response = await fetch('/api/dream-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dream }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Не удалось выполнить анализ.');
+      renderAnalysis(data.analysis);
+    } catch (error) {
+      formError.textContent = error.message || 'Не удалось выполнить анализ. Попробуй ещё раз.';
+    } finally {
+      analyzeButton.disabled = false;
+      analyzeButton.querySelector('span').textContent = 'Проанализировать сон';
+    }
+  });
+</script>
+
+</body>
+</html>

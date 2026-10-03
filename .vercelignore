@@ -1,0 +1,8 @@
+.env
+.env.*
+*.docx
+*.zip
+*.jpg
+.DS_Store
+server.mjs
+README.md
