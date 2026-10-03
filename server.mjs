@@ -3,8 +3,27 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PORT = Number(process.env.PORT || 3000);
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
+
+// Локально настройки берутся из .env, а на хостинге — из переменных окружения.
+// Файл .env отсутствует на Render и не должен быть частью репозитория.
+async function loadLocalEnv() {
+  try {
+    const source = await readFile(join(ROOT, '.env'), 'utf8');
+    for (const line of source.split(/\r?\n/)) {
+      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (!match || Object.hasOwn(process.env, match[1])) continue;
+      const value = match[2].replace(/^(['"])(.*)\1$/, '$2');
+      process.env[match[1]] = value;
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+}
+
+await loadLocalEnv();
+
+const PORT = Number(process.env.PORT || 3000);
 const PAGE = 'somnium_1 (1).html';
 const MAX_DREAM_LENGTH = 6000;
 const MAX_CHAT_MESSAGE_LENGTH = 4000;
