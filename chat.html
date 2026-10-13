@@ -65,10 +65,6 @@
     .safety { margin:20px auto 0; color:var(--mute); font-size:12px; line-height:1.5; text-align:center; }
     .safety strong { color:var(--ink-soft); font-weight:500; }
     .account-link{color:var(--accent-deep);font-size:14px;min-height:44px;display:inline-flex;align-items:center;text-decoration:none}
-    .chat-history{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);font-size:13px;color:var(--ink-soft)}
-    .chat-history label{flex:1;min-width:160px;display:grid;gap:6px}.chat-history select{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px;min-height:44px;width:100%;max-width:100%}
-    .chat-history button{font:inherit;background:var(--soft);border:1px solid var(--line);border-radius:8px;min-height:44px;padding:10px 14px;color:var(--ink)}
-    .chat-history button:disabled{opacity:.5;cursor:wait}.history-note{width:100%;margin:0;color:var(--ink-soft);font-size:12px}.guest-note{font-size:13px;margin:0 0 16px;color:var(--ink-soft)}
     [hidden]{display:none!important}
     @keyframes enter { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
     @keyframes message-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
@@ -76,6 +72,7 @@
     @media (max-width:640px) { .nav { height:64px; padding:0 20px; }.brand { font-size:20px; }.back-link { display:none; }.app { width:min(100% - 24px,820px); min-height:calc(100vh - 64px); padding:34px 0 22px; }.intro { margin-bottom:24px; }.intro p { font-size:15px; }.chat { min-height:470px; border-radius:16px; }.chat-top { padding:14px 16px; }.messages { padding:20px 14px; }.message { max-width:91%; }.composer { padding:10px; }.helper { font-size:10px; }.safety { font-size:11px; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; } }
   </style>
+  <link rel="stylesheet" href="assets/chat.css">
 </head>
 <body data-theme="light">
   <a class="skip" href="#main">Перейти к чату</a>
@@ -95,16 +92,29 @@
       <p>Опиши сюжет, деталь или ощущение. Сомний поможет бережно сформулировать наблюдения и вопросы к себе.</p>
     </header>
 
-    <p class="guest-note" id="guestNote">Войдите, чтобы сохранять разговоры и обсуждать записи из дневника.</p>
-    <section class="chat-history" id="chatHistory" aria-label="Сохранённые разговоры" hidden>
-      <label>Ваши разговоры<select id="conversationSelect" aria-label="Выбрать сохранённый разговор"><option value="">Новый разговор</option></select></label>
-      <button type="button" id="newConversation">Новый</button><button type="button" id="deleteConversation" hidden>Удалить</button>
-      <p class="history-note" id="historyNote">Сообщения сохраняются в вашем аккаунте.</p>
-    </section>
+    <div class="chat-workspace">
+    <aside class="history-panel" id="chatHistory" aria-label="История диалогов">
+      <button class="history-toggle" id="historyToggle" type="button" aria-expanded="false" aria-controls="historyBody">История диалогов <span aria-hidden="true">⌄</span></button>
+      <div class="history-body" id="historyBody">
+        <button class="new-chat" type="button" id="newConversation"><span aria-hidden="true">+</span> Новый чат</button>
+        <div class="history-heading"><h2>Ваши диалоги</h2><span id="conversationCount" aria-label="Количество диалогов">0</span></div>
+        <nav class="conversation-list" id="conversationList" aria-label="Выбрать диалог" aria-busy="true"></nav>
+        <p class="history-empty" id="historyEmpty">Загружаем историю…</p>
+        <p class="guest-note" id="guestNote" hidden>Войдите, чтобы сохранять диалоги и возвращаться к ним.<br><a href="login.html?next=chat">Войти в аккаунт →</a></p>
+        <div class="history-actions">
+          <span class="actions-label">Текущий диалог</span>
+          <button class="history-action" type="button" id="clearConversation" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m15 4 5 5-9 9H6l-3-3L15 4Z"/><path d="m9 10 5 5M11 18h10"/></svg>Очистить чат</button>
+          <button class="history-action danger" type="button" id="deleteConversation" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>Удалить диалог</button>
+        </div>
+        <p class="history-note" id="historyNote">История доступна только вам.</p>
+      </div>
+    </aside>
+    <div class="chat-column">
     <section class="chat" aria-label="Чат с Сомнием">
       <div class="chat-top">
         <div class="orb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a9 9 0 1 0 9 9c0-1.4-.3-2.7-.8-3.8A7.2 7.2 0 0 1 15.8 12 7.2 7.2 0 0 1 12 20.2 9 9 0 0 0 12 3Z"/></svg></div>
-        <div><div class="chat-title">Сомний</div><div class="chat-status"><span class="status-dot"></span>бережная AI-рефлексия</div></div>
+        <div class="chat-heading"><div class="chat-title">Сомний</div><div class="chat-status"><span class="status-dot"></span>бережная AI-рефлексия</div></div>
+        <span class="current-conversation" id="currentConversation">Новый чат</span>
       </div>
       <div class="messages" id="messages" aria-live="polite" aria-label="Сообщения чата"></div>
       <div class="composer">
@@ -118,7 +128,17 @@
       </div>
     </section>
     <p class="safety"><strong>Важно:</strong> это пространство для саморефлексии, а не замена психологу или экстренной помощи.</p>
+    </div>
+    </div>
+    <p class="chat-notice" id="chatNotice" role="status" aria-live="polite"></p>
   </main>
-
+  <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmDescription">
+    <form method="dialog">
+      <span class="dialog-eyebrow">Управление диалогом</span>
+      <h2 id="confirmTitle">Удалить диалог?</h2>
+      <p id="confirmDescription"></p>
+      <div class="dialog-actions"><button class="dialog-cancel" id="cancelConfirm" type="button" autofocus>Отмена</button><button class="dialog-confirm" id="confirmButton" type="button">Удалить</button></div>
+    </form>
+  </dialog>
 </body>
 </html>

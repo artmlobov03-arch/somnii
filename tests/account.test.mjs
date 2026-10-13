@@ -73,8 +73,24 @@ async function exercise(t, db) {
   assert.equal((await request(`/api/account/conversations/${id}/messages`, { content: 'Проверка ошибки' }, alice.cookie)).status, 500);
   assert.equal((await request(`/api/account/conversations/${id}`, null, alice.cookie)).data.messages.length, 4);
   shouldFail = false;
+  assert.equal((await request(`/api/account/conversations/${id}/messages`, null, bob.cookie, 'DELETE')).status, 404);
+  assert.equal((await request(`/api/account/conversations/${id}/messages`, null, alice.cookie, 'DELETE', { Origin: 'https://attacker.example' })).status, 403);
+  const cleared = await request(`/api/account/conversations/${id}/messages`, null, alice.cookie, 'DELETE');
+  assert.equal(cleared.status, 200); assert.deepEqual(cleared.data.messages, []);
+  assert.equal(cleared.data.conversation.id, id); assert.equal(cleared.data.conversation.dreamId, dream.id);
+  assert.equal((await request(`/api/account/conversations/${id}`, null, alice.cookie)).data.messages.length, 0);
+  assert.ok((await request('/api/account/conversations', null, alice.cookie)).data.conversations.some(item => item.id === id));
+  assert.equal((await request(`/api/account/dreams/${dream.id}`, null, alice.cookie)).status, 200);
+  const afterClear = await request(`/api/account/conversations/${id}/messages`, { content: 'Начнём с другой детали.' }, alice.cookie);
+  assert.equal(afterClear.status, 200); assert.equal(seen.at(-1).history.length, 1);
+  assert.equal((await request(`/api/account/conversations/${id}`, null, alice.cookie)).data.messages.length, 2);
   await request(`/api/account/dreams/${dream.id}`, null, alice.cookie, 'DELETE');
   assert.equal((await request(`/api/account/conversations/${id}`, null, alice.cookie)).data.conversation.dreamId, null);
+  const otherChat = await request('/api/account/conversations', {}, alice.cookie);
+  assert.equal((await request(`/api/account/conversations/${id}`, null, alice.cookie, 'DELETE')).status, 200);
+  assert.equal((await request(`/api/account/conversations/${id}`, null, alice.cookie)).status, 404);
+  assert.equal((await db.query('SELECT * FROM messages WHERE conversation_id = ?', [id])).length, 0);
+  assert.equal((await request(`/api/account/conversations/${otherChat.data.conversation.id}`, null, alice.cookie)).status, 200);
 
   const login = await request('/api/auth/login', { email: 'ALICE@example.test', password: 'somnii-test-password' });
   assert.equal(login.status, 200);
@@ -122,6 +138,34 @@ test('PostgreSQL SQL compatibility with a real embedded PostgreSQL engine', asyn
   };
   const db = await createDatabase({ pool }); t.after(() => db.close());
   await exercise(t, db);
+});
+
+test('Clear and delete reject an in-flight AI response, then clear permanently', async t => {
+  const db = await createDatabase({ filename: ':memory:' });
+  t.after(() => db.close());
+  let release, started;
+  const ready = new Promise(resolve => { started = resolve; });
+  const pending = new Promise(resolve => { release = resolve; });
+  const server = createAppServer({ database: async () => db, chat: async () => { started(); await pending; return 'Ответ'; } });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const registration = await fetch(base + '/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'race@example.test', name: 'Race', password: 'race-test-password' }) });
+  assert.equal(registration.status, 201);
+  const headers = { 'Content-Type': 'application/json', Cookie: registration.headers.get('set-cookie').split(';')[0] };
+  const created = await fetch(base + '/api/account/conversations', { method: 'POST', headers, body: '{}' });
+  const id = (await created.json()).conversation.id;
+  const path = base + `/api/account/conversations/${id}`;
+  const answer = fetch(path + '/messages', { method: 'POST', headers, body: JSON.stringify({ content: 'Не удалять до ответа' }) });
+  await ready;
+  try {
+    assert.equal((await fetch(path + '/messages', { method: 'DELETE', headers })).status, 409);
+    assert.equal((await fetch(path, { method: 'DELETE', headers })).status, 409);
+  } finally { release(); }
+  assert.equal((await answer).status, 200);
+  assert.equal((await fetch(path + '/messages', { method: 'DELETE', headers })).status, 200);
+  assert.equal((await db.query('SELECT * FROM messages WHERE conversation_id = ?', [id])).length, 0);
+  assert.equal((await fetch(path, { headers })).status, 200);
 });
 
 test('Responses API contract: JSON input marker, role history and sanitized upstream errors', async t => {
