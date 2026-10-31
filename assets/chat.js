@@ -1,16 +1,20 @@
 import { $, api, post, themeSetup } from './common.js';
+import { setupChatExtras } from './chat-extras.js';
 themeSetup();
 const messagesEl = $('#messages'), input = $('#messageInput'), form = $('#chatForm'), errorEl = $('#error');
 let history = [], user = null, conversation = null, conversations = [], busy = true;
 let noticeTimer;
+let searchRequest=0,searchTimer;
+const extras=setupChatExtras({getState:()=>({history,user,conversation,busy}),setBusy,refreshOptions,announce,report:error=>errorEl.textContent=error.message});
 const dialog = $('#confirmDialog');
 const chatIcon = '<svg class="conversation-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 11a8 8 0 0 1-8 8H7l-4 3V5a2 2 0 0 1 2-2h8a8 8 0 0 1 8 8Z"/><path d="M7 8h9M7 12h6"/></svg>';
 const moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 13A8 8 0 1 1 11 4a7 7 0 0 0 9 9Z"/></svg>';
 const person = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>';
-function addMessage(role, text) {
+function addMessage(role, text, message={}) {
   const item = document.createElement('div'); item.className = `message ${role}`;
-  item.innerHTML = `<div class="avatar">${role === 'user' ? person : moon}</div><div class="bubble"></div>`;
+  item.innerHTML = `<div class="avatar">${role === 'user' ? person : moon}</div><div class="message-body"><div class="bubble"></div></div>`;
   item.querySelector('.bubble').textContent = text;
+  extras.addFeedbackControls(item.querySelector('.message-body'),message);
   messagesEl.append(item); messagesEl.scrollTop = messagesEl.scrollHeight; return item;
 }
 function setBusy(value) {
@@ -22,6 +26,10 @@ function updateControls() {
   $('#newConversation').disabled = busy;
   $('#clearConversation').disabled = busy || !history.length;
   $('#deleteConversation').disabled = busy || !conversation;
+  $('#renameConversation').disabled = busy || !conversation;
+  $('#summarizeConversation').disabled = busy || !conversation || !history.some(message=>message.role==='assistant');
+  $('#conversationSearch').disabled = !user;
+  messagesEl.querySelectorAll('.response-feedback button').forEach(button=>button.disabled=busy);
   for (const button of $('#conversationList').querySelectorAll('button')) button.disabled = busy;
 }
 function announce(text) {
@@ -63,7 +71,7 @@ function updateUrl() {
 function renderMessages() {
   messagesEl.replaceChildren();
   if (!history.length) addMessage('assistant', conversation?.dreamId ? `Я вижу вашу запись «${conversation.title}». С чего хочется начать: с сюжета или с ощущения после пробуждения?` : 'Привет. Я рядом, чтобы спокойно разобрать сон или ощущение после него. Что сегодня запомнилось сильнее всего?');
-  else history.forEach(message => addMessage(message.role, message.content));
+  else history.forEach(message => addMessage(message.role, message.content,message));
   $('#currentConversation').textContent = conversation?.title || 'Новый чат';
   $('#currentConversation').title = conversation?.title || 'Новый чат';
   $('#historyNote').textContent = user ? (conversation?.dreamId ? 'Диалог связан с записью сна. Очистка чата не удалит сам сон.' : 'Сообщения сохраняются в аккаунте после ответа Сомния.') : 'Гостевой чат не сохраняется после закрытия страницы.';
@@ -73,7 +81,7 @@ function renderHistory() {
   const list = $('#conversationList'); list.replaceChildren();
   $('#conversationCount').textContent = conversations.length;
   $('#historyEmpty').hidden = !user || conversations.length > 0;
-  $('#historyEmpty').textContent = 'Здесь появятся ваши диалоги. Начните новый чат.';
+  $('#historyEmpty').textContent = $('#conversationSearch').value ? 'Совпадений нет. Попробуйте другую фразу.' : 'Здесь появятся ваши диалоги. Начните новый чат.';
   $('#guestNote').hidden = Boolean(user);
   for (const item of conversations) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'conversation-item';
@@ -89,7 +97,10 @@ function renderHistory() {
   list.setAttribute('aria-busy', 'false'); updateControls();
 }
 async function refreshOptions() {
-  conversations = (await api('/api/account/conversations')).conversations;
+  const request=++searchRequest;
+  const data=await api(`/api/account/conversations?q=${encodeURIComponent($('#conversationSearch').value)}`);
+  if(request!==searchRequest)return;
+  conversations = data.conversations;
   if (conversation) conversation = conversations.find(item => item.id === conversation.id) || conversation;
   renderHistory();
   $('#currentConversation').textContent = conversation?.title || 'Новый чат';
@@ -121,7 +132,7 @@ $('#newConversation').addEventListener('click', () => switchConversation(async (
 }));
 $('#clearConversation').addEventListener('click', async () => {
   if (busy || !history.length) return;
-  if (!await confirmAction('Очистить чат?', 'Все сообщения этого диалога будут удалены без возможности восстановления. Сам диалог останется в истории, запись сна не изменится. Неотправленный текст тоже будет удалён.', 'Очистить чат')) return;
+  if (!await confirmAction('Очистить чат?', 'Все сообщения и оценки ответов этого диалога будут удалены без возможности восстановления, включая переданные для проверки фрагменты. Сам диалог, сон и сохранённые итоги останутся. Неотправленный текст тоже будет удалён.', 'Очистить чат')) return;
   setBusy(true); errorEl.textContent = '';
   try {
     if (conversation) {
@@ -130,13 +141,14 @@ $('#clearConversation').addEventListener('click', async () => {
       conversations = conversations.map(item => item.id === conversation.id ? conversation : item).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     }
     history = []; input.value = ''; inputChanged(); renderMessages(); renderHistory(); closeHistory();
+    if(user)await refreshOptions();
     announce(user ? 'Сообщения удалены. Диалог остался в истории.' : 'Гостевой чат очищен.');
   } catch (error) { errorEl.textContent = error.message; }
   finally { setBusy(false); input.focus(); }
 });
 $('#deleteConversation').addEventListener('click', async () => {
   if (busy || !conversation) return;
-  if (!await confirmAction('Удалить диалог?', `Диалог «${conversation.title}» и все его сообщения будут удалены без возможности восстановления. Запись сна и остальные диалоги останутся. Неотправленный текст тоже будет удалён.`, 'Удалить диалог')) return;
+  if (!await confirmAction('Удалить диалог?', `Диалог «${conversation.title}», его сообщения, оценки и переданные для проверки фрагменты будут удалены без возможности восстановления. Сон, сохранённые итоги и остальные диалоги останутся. Неотправленный текст тоже будет удалён.`, 'Удалить диалог')) return;
   setBusy(true); errorEl.textContent = '';
   try {
     await api(`/api/account/conversations/${conversation.id}`, { method: 'DELETE' });
@@ -162,8 +174,9 @@ form.addEventListener('submit', async event => {
     input.value = ''; inputChanged();
     const result = user ? await post(`/api/account/conversations/${conversation.id}/messages`, { content })
       : await post('/api/dream-chat', { messages: [...history, { role: 'user', content }].slice(-16) });
-    history.push({ role: 'user', content }, { role: 'assistant', content: result.text });
-    typing.remove(); addMessage('assistant', result.text);
+    const saved=result.messages || [{ role: 'user', content }, { role: 'assistant', content: result.text }];
+    history.push(...saved);
+    typing.remove(); addMessage('assistant', result.text,saved.at(-1));
     updateControls();
     if (user) await refreshOptions().catch(() => {});
   } catch (error) {
@@ -195,4 +208,8 @@ async function init() {
     // A guest may still use the existing public chat if account storage is not connected yet.
   } finally { renderHistory(); renderMessages(); setBusy(false); }
 }
+$('#conversationSearch').addEventListener('input',()=>{
+  clearTimeout(searchTimer);++searchRequest;
+  searchTimer=setTimeout(()=>{if(user)refreshOptions().catch(error=>{errorEl.textContent=error.message;});},220);
+});
 init();
