@@ -181,7 +181,10 @@ test('Responses API contract: JSON input marker, role history and sanitized upst
     const request = JSON.parse(options.body);
     requests.push(request);
     if (rejected) return Response.json({ error: { message: 'SECRET detail must not reach browser' } }, { status: 401 });
-    return Response.json({ output: [{ content: [{ type: 'output_text', text: request.text ? JSON.stringify({ title: 'Сад', summary: 'Спокойная прогулка' }) : 'Что вы чувствовали рядом с домом?' }] }] });
+    const data = request.text.format.name === 'somnii_analysis_v2'
+      ? { kind: 'dream', title: 'Сад', summary: 'Спокойная прогулка', emotions: ['Спокойствие'], themes: ['Прогулка'], symbols: [], questions: [], grounding: '', note: 'Саморефлексия, не диагноз.' }
+      : { mode: 'reflect', answer: 'Вы назвали чувство спокойствия.', question: 'Что вы чувствовали рядом с домом?' };
+    return Response.json({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(data) }] }] });
   });
   const server = createAppServer();
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -190,7 +193,8 @@ test('Responses API contract: JSON input marker, role history and sanitized upst
   const send = (path, body) => localFetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const result = await send('/api/dream-analysis', { dream: 'Я гулял по саду после дождя, и мне было спокойно.' });
   assert.equal(result.status, 200); assert.equal((await result.json()).analysis.title, 'Сад');
-  assert.equal(requests[0].text.format.type, 'json_object');
+  assert.equal(requests[0].text.format.type, 'json_schema');
+  assert.equal(requests[0].text.format.strict, true);
   assert.match(JSON.stringify(requests[0].input), /json/i);
   assert.equal(requests[0].store, false); assert.ok(requests[0].instructions);
   const messages = [{ role: 'user', content: 'Я видел дом.' }, { role: 'assistant', content: 'Что чувствовали?' }, { role: 'user', content: 'Спокойствие.' }];

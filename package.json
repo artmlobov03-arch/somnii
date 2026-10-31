@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:ai": "node --test tests/ai.test.mjs",
+    "eval:ai": "node scripts/eval-ai.mjs"
   },
   "engines": {
     "node": ">=22.13"

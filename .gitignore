@@ -5,3 +5,5 @@ data/
 *.sqlite*
 .vercel/
 coverage/
+# Generated AI evaluation transcripts remain local; synthetic fixtures are versioned.
+evals/*report*.json
