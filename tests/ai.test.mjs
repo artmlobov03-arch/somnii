@@ -125,5 +125,6 @@ test('Evaluation cases are unique and their formal grader detects wrong modes an
   const summary = cases.find(item => item.id === 'summary-without-questions');
   assert.deepEqual(checkCase(summary, { mode: 'summary', text: 'Вы связали сон с завершённым проектом.' }), []);
   assert.ok(checkCase(summary, { mode: 'clarify', text: 'Что было дальше?' }).includes('unexpected_question'));
+  assert.ok(checkCase(summary, { mode: 'summary', text: 'Вместо тревоги — спокойствие.' }).some(item => item.startsWith('unsupported_detail:')));
   assert.ok(checkCase(cases.find(item => item.id === 'no-missing-emotions'), analysis({ emotions: ['Страх'] })).includes('invented_emotions'));
 });
