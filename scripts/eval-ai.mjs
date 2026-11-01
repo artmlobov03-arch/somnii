@@ -20,7 +20,7 @@ if (!args.includes('--live')) {
   for (const example of selected) {
     const started = Date.now();
     try {
-      const result = example.task === 'analysis' ? await ai.analyze(example.dream) : await ai.chatReply(example.messages, example.dream);
+      const result = example.task === 'analysis' ? await ai.analyze(example.dream) : await ai.chatReply(example.messages, example.dream, example.personal);
       const failures = checkCase(example, result);
       report.cases.push({ id: example.id, milliseconds: Date.now() - started, failures, result, manualReview: example.review });
       console.log(`${failures.length ? 'REVIEW' : 'PASS'} ${example.id}: ${failures.join(', ') || 'формальные проверки пройдены'}`);

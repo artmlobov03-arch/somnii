@@ -92,8 +92,9 @@ test('SQLite migration retains existing records and can run twice',async()=>{
     await db.query('INSERT INTO users VALUES (?,?,?,?,?)',['user','migration@example.test','Test','hash',now]);
     await db.query('INSERT INTO dreams (id,user_id,title,content,dream_date,emotions,symbols,themes,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',['dream','user','Старый сон','Текст','2026-10-30','[]','[]','[]',now,now]);
     await db.query('INSERT INTO conversations (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)',['chat','user','Старый чат',now,now]);
-    await db.query('ALTER TABLE dreams DROP COLUMN is_favorite');await db.query('ALTER TABLE conversations DROP COLUMN title_custom');await db.close();db=null;
-    for(let i=0;i<2;i++){db=await createDatabase({filename});assert.equal((await db.query('SELECT * FROM dreams'))[0].content,'Текст');assert.equal((await db.query('SELECT * FROM dreams'))[0].is_favorite,0);assert.equal((await db.query('SELECT * FROM conversations'))[0].title_custom,0);await db.close();db=null;}
+    await db.query('INSERT INTO messages (id,conversation_id,position,role,content,created_at) VALUES (?,?,?,?,?,?)',['old-message','chat',0,'user','Старое сообщение',now]);
+    await db.query('ALTER TABLE dreams DROP COLUMN is_favorite');await db.query('ALTER TABLE conversations DROP COLUMN title_custom');await db.query('ALTER TABLE conversations DROP COLUMN personalization');await db.query('ALTER TABLE messages DROP COLUMN ai_context');await db.close();db=null;
+    for(let i=0;i<2;i++){db=await createDatabase({filename});assert.equal((await db.query('SELECT * FROM dreams'))[0].content,'Текст');assert.equal((await db.query('SELECT * FROM dreams'))[0].is_favorite,0);assert.equal((await db.query('SELECT * FROM conversations'))[0].title_custom,0);assert.equal((await db.query('SELECT * FROM conversations'))[0].personalization,1);const [message]=await db.query('SELECT * FROM messages');assert.equal(message.content,'Старое сообщение');assert.equal(message.ai_context,null);await db.close();db=null;}
   }finally{if(db)await db.close();await rm(directory,{recursive:true,force:true});}
 });
 test('Weekly window includes exactly seven local dates, deduplicates labels and cites only sources in range',()=>{

@@ -72,7 +72,7 @@
     @media (max-width:640px) { .nav { height:64px; padding:0 20px; }.brand { font-size:20px; }.back-link { display:none; }.app { width:min(100% - 24px,820px); min-height:calc(100vh - 64px); padding:34px 0 22px; }.intro { margin-bottom:24px; }.intro p { font-size:15px; }.chat { min-height:470px; border-radius:16px; }.chat-top { padding:14px 16px; }.messages { padding:20px 14px; }.message { max-width:91%; }.composer { padding:10px; }.helper { font-size:10px; }.safety { font-size:11px; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; } }
   </style>
-  <link rel="stylesheet" href="assets/chat.css">
+  <link rel="stylesheet" href="assets/chat.css"><link rel="stylesheet" href="assets/personalization.css">
 </head>
 <body data-theme="light">
   <a class="skip" href="#main">Перейти к чату</a>
@@ -116,6 +116,7 @@
         <div class="chat-heading"><div class="chat-title">Сомний</div><div class="chat-status"><span class="status-dot"></span>бережная AI-рефлексия</div></div>
         <span class="current-conversation" id="currentConversation">Новый чат</span>
       </div>
+      <div class="personalization-bar"><button type="button" id="personalizationToggle" aria-pressed="false" disabled>Мои настройки выключены</button><a href="account.html#ai">Настроить Сомния →</a><p id="personalizationHint">Личные настройки доступны после входа.</p></div>
       <div class="messages" id="messages" aria-live="polite" aria-label="Сообщения чата"></div>
       <div class="composer">
         <form id="chatForm">

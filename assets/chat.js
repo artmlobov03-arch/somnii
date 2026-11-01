@@ -1,11 +1,13 @@
 import { $, api, post, themeSetup } from './common.js';
 import { setupChatExtras } from './chat-extras.js';
+import { setupChatPersonalization } from './chat-personalization.js';
 themeSetup();
 const messagesEl = $('#messages'), input = $('#messageInput'), form = $('#chatForm'), errorEl = $('#error');
 let history = [], user = null, conversation = null, conversations = [], busy = true;
 let noticeTimer;
 let searchRequest=0,searchTimer;
 const extras=setupChatExtras({getState:()=>({history,user,conversation,busy}),setBusy,refreshOptions,announce,report:error=>errorEl.textContent=error.message});
+const personal=setupChatPersonalization({getState:()=>({history,user,conversation,busy}),setBusy,refreshOptions,announce,report:error=>errorEl.textContent=error.message});
 const dialog = $('#confirmDialog');
 const chatIcon = '<svg class="conversation-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 11a8 8 0 0 1-8 8H7l-4 3V5a2 2 0 0 1 2-2h8a8 8 0 0 1 8 8Z"/><path d="M7 8h9M7 12h6"/></svg>';
 const moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 13A8 8 0 1 1 11 4a7 7 0 0 0 9 9Z"/></svg>';
@@ -15,6 +17,7 @@ function addMessage(role, text, message={}) {
   item.innerHTML = `<div class="avatar">${role === 'user' ? person : moon}</div><div class="message-body"><div class="bubble"></div></div>`;
   item.querySelector('.bubble').textContent = text;
   extras.addFeedbackControls(item.querySelector('.message-body'),message);
+  personal.addControls(item.querySelector('.message-body'),message);
   messagesEl.append(item); messagesEl.scrollTop = messagesEl.scrollHeight; return item;
 }
 function setBusy(value) {
@@ -31,6 +34,7 @@ function updateControls() {
   $('#conversationSearch').disabled = !user;
   messagesEl.querySelectorAll('.response-feedback button').forEach(button=>button.disabled=busy);
   for (const button of $('#conversationList').querySelectorAll('button')) button.disabled = busy;
+  personal.update();
 }
 function announce(text) {
   clearTimeout(noticeTimer); $('#chatNotice').textContent = text;
@@ -112,7 +116,7 @@ async function openConversation(id) {
   renderHistory();
 }
 async function createConversation(dreamId) {
-  const data = await post('/api/account/conversations', { dreamId });
+  const data = await post('/api/account/conversations', { dreamId, personalization:personal.newChatPreference() });
   conversation = data.conversation; history = []; renderMessages(); updateUrl(); await refreshOptions();
 }
 async function switchConversation(action) {
@@ -125,6 +129,7 @@ async function switchConversation(action) {
   finally { setBusy(false); input.focus(); }
 }
 function resetChat() {
+  personal.reset();
   conversation = null; history = []; input.value = ''; inputChanged(); renderMessages(); renderHistory(); updateUrl();
 }
 $('#newConversation').addEventListener('click', () => switchConversation(async () => {
@@ -167,6 +172,7 @@ form.addEventListener('submit', async event => {
   errorEl.textContent = ''; setBusy(true);
   let item, typing;
   try {
+    if(user)await personal.load();
     if (user && !conversation) await createConversation();
     item = addMessage('user', content);
     typing = addMessage('assistant', 'Сомний размышляет…'); typing.classList.add('typing');
@@ -176,6 +182,7 @@ form.addEventListener('submit', async event => {
       : await post('/api/dream-chat', { messages: [...history, { role: 'user', content }].slice(-16) });
     const saved=result.messages || [{ role: 'user', content }, { role: 'assistant', content: result.text }];
     history.push(...saved);
+    if(user)personal.addControls(item.querySelector('.message-body'),saved[0]);
     typing.remove(); addMessage('assistant', result.text,saved.at(-1));
     updateControls();
     if (user) await refreshOptions().catch(() => {});
@@ -192,6 +199,7 @@ async function init() {
     const result = await api('/api/auth/me'); user = result.user;
     if (user) {
       $('#accountLink').textContent = 'Мой дневник'; $('#accountLink').href = 'account.html';
+      await personal.load();
       await refreshOptions();
       const params = new URLSearchParams(location.search), dreamId = params.get('dream'), id = params.get('conversation');
       if (id) await openConversation(id);
@@ -212,4 +220,5 @@ $('#conversationSearch').addEventListener('input',()=>{
   clearTimeout(searchTimer);++searchRequest;
   searchTimer=setTimeout(()=>{if(user)refreshOptions().catch(error=>{errorEl.textContent=error.message;});},220);
 });
+window.addEventListener('beforeunload',event=>{if(input.value.trim()){event.preventDefault();event.returnValue='';}});
 init();

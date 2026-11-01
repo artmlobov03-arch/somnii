@@ -2,13 +2,15 @@ import { $, api, post, escapeHtml as e, localDate, dateLabel, themeSetup, analys
 import { createDraftStore } from './drafts.js';
 import { createVoiceInput } from './voice.js';
 import { setupAccountExtras } from './account-extras.js';
+import { setupAISettings } from './ai-settings.js';
 themeSetup();
 const emotions = ['Спокойствие', 'Радость', 'Тревога', 'Страх', 'Грусть', 'Удивление', 'Растерянность', 'Интерес'];
 let user, stats, currentDream = null, selectedDate = localDate(), calendarMonth = new Date(), offset = 0, calendarOffset = 0, total = 0, requestNumber = 0, busy = false, baseline = '';
 const dialog = $('#dreamDialog');
 let drafts, favoriteOnly=false;
 const extras = setupAccountExtras({openDream,report});
-const views = { diary: ['Мой дневник', 'Оставьте здесь то, что хочется запомнить.'], calendar: ['Календарь сновидений', 'Маленькие воспоминания складываются в историю.'], weekly: ['Моя неделя', 'Семь дней записей и наблюдений, которые можно проверить.'], notes: ['Итоги разговоров', 'Ваши мысли после диалога с Сомнием.'], statistics: ['Наблюдения', 'Замечайте, что повторяется в ваших снах.'], profile: ['Ваш профиль', 'Как к вам обращаться и как защитить аккаунт.'] };
+const aiSettings = setupAISettings({report});
+const views = { ai: ['Ваш Сомний', 'Разговор, который учитывает ваши предпочтения и личные значения.'], diary: ['Мой дневник', 'Оставьте здесь то, что хочется запомнить.'], calendar: ['Календарь сновидений', 'Маленькие воспоминания складываются в историю.'], weekly: ['Моя неделя', 'Семь дней записей и наблюдений, которые можно проверить.'], notes: ['Итоги разговоров', 'Ваши мысли после диалога с Сомнием.'], statistics: ['Наблюдения', 'Замечайте, что повторяется в ваших снах.'], profile: ['Ваш профиль', 'Как к вам обращаться и как защитить аккаунт.'] };
 const emptyIcon = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M19 14a8 8 0 1 1-9-9 7 7 0 0 0 9 9Z"/></svg>';
 const plural = (count, one, few, many) => `${count} ${count % 100 >= 11 && count % 100 <= 14 ? many : count % 10 === 1 ? one : count % 10 >= 2 && count % 10 <= 4 ? few : many}`;
 function message(text, error = false) { $('#pageMessage').textContent = text; $('#pageMessage').classList.toggle('error', error); }
@@ -76,7 +78,7 @@ async function loadCalendarDay(append = false) {
   $('#moreCalendarDreams').hidden = calendarOffset + 30 >= data.total;
 }
 function selectView() {
-  const view = location.hash.slice(1) in views ? location.hash.slice(1) : 'diary';
+  const view = Object.hasOwn(views,location.hash.slice(1)) ? location.hash.slice(1) : 'diary';
   for (const name of Object.keys(views)) $(`#${name}View`).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(link => {
     if (link.dataset.view === view) link.setAttribute('aria-current', 'page');
@@ -84,9 +86,10 @@ function selectView() {
   });
   $('#pageTitle').textContent = views[view][0]; $('#pageDescription').textContent = views[view][1];
   document.title = `${views[view][0]} — Сомний`;
-  $('#summaryRow').hidden = view === 'profile'; $('#newDream').hidden = view === 'profile';
+  $('#summaryRow').hidden = ['profile','ai'].includes(view); $('#newDream').hidden = ['profile','ai'].includes(view);
   if (view === 'calendar') { calendarOffset = 0; loadCalendarDay().catch(report); }
   extras.refresh(view).catch(report);
+  aiSettings.refresh(view).catch(report);
 }
 const split = value => value.split(',').map(item => item.trim()).filter(Boolean);
 function editorData() {
@@ -233,7 +236,7 @@ async function init() {
   message('Открываем ваш дневник…');
   try {
     const data = await api('/api/auth/me');
-    if (!data.user) { location.replace('login.html'); return; }
+    if (!data.user) { location.replace(location.hash==='#ai'?'login.html?next=ai':'login.html'); return; }
     user = data.user; drafts=createDraftStore(user.id); updateDraftBanner(); $('#accountName').textContent = user.name;
     $('#profileName').value = user.name; $('#profileEmail').textContent = user.email;
     await refresh(); $('#accountContent').hidden = false; message(''); selectView();

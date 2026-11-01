@@ -161,6 +161,7 @@ test('Clear and delete reject an in-flight AI response, then clear permanently',
   try {
     assert.equal((await fetch(path + '/messages', { method: 'DELETE', headers })).status, 409);
     assert.equal((await fetch(path, { method: 'DELETE', headers })).status, 409);
+    assert.equal((await fetch(path + '/personalization', { method:'PATCH', headers, body:JSON.stringify({enabled:false}) })).status,409);
   } finally { release(); }
   assert.equal((await answer).status, 200);
   assert.equal((await fetch(path + '/messages', { method: 'DELETE', headers })).status, 200);

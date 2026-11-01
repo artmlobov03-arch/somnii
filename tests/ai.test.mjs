@@ -121,7 +121,7 @@ test('Incomplete responses and refusals are not parsed or persisted as valid ans
 });
 
 test('Evaluation cases are unique and their formal grader detects wrong modes and question violations', () => {
-  assert.equal(cases.length, 14); assert.equal(new Set(cases.map(item => item.id)).size, 14);
+  assert.equal(cases.length, 17); assert.equal(new Set(cases.map(item => item.id)).size, cases.length);
   const summary = cases.find(item => item.id === 'summary-without-questions');
   assert.deepEqual(checkCase(summary, { mode: 'summary', text: 'Вы связали сон с завершённым проектом.' }), []);
   assert.ok(checkCase(summary, { mode: 'clarify', text: 'Что было дальше?' }).includes('unexpected_question'));

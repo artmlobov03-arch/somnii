@@ -3,7 +3,7 @@ themeSetup();
 let mode = 'login';
 const params = new URLSearchParams(location.search);
 const dream = params.get('dream');
-const destination = params.get('next') === 'chat' ? `chat.html${/^[a-f0-9-]{36}$/.test(dream || '') ? `?dream=${dream}` : ''}` : 'account.html';
+const destination = params.get('next') === 'chat' ? `chat.html${/^[a-f0-9-]{36}$/.test(dream || '') ? `?dream=${dream}` : ''}` : params.get('next')==='ai'?'account.html#ai':'account.html';
 function selectMode(value) {
   mode = value;
   const register = mode === 'register';
